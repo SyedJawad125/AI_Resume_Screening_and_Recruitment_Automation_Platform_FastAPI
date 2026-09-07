@@ -1,85 +1,47 @@
-from typing import Any, Dict, Optional, List
-from fastapi import Response
+"""
+app/utils/response.py
+─────────────────────────
+Every endpoint returns the same envelope shape so the Next.js frontend
+(and Postman tests) can rely on a consistent contract:
+
+    { "success": true, "message": "...", "data": ... }
+    { "success": true, "message": "...", "data": [...],
+      "pagination": {"page": 1, "page_size": 20, "total": 137, "total_pages": 7} }
+"""
+
 from fastapi.responses import JSONResponse
 
 
-def success_response(
-    data: Any = None,
-    message: str = "Success",
-    status_code: int = 200
-) -> JSONResponse:
-    """
-    Standard success response format.
-    
-    Args:
-        data: The response data
-        message: Success message
-        status_code: HTTP status code
-    
-    Returns:
-        JSONResponse with standard format
-    """
-    response_data = {
-        "success": True,
-        "message": message,
-        "data": data
-    }
-    return JSONResponse(content=response_data, status_code=status_code)
+def success_response(data=None, message: str = "OK", status_code: int = 200, count: int | None = None):
+    body = {"success": True, "message": message, "data": data}
+    if count is not None:
+        body["count"] = count
+    return JSONResponse(status_code=status_code, content=_jsonable(body))
 
 
-def paginated_response(
-    data: List[Any],
-    total: int,
-    page: int,
-    page_size: int,
-    message: str = "Success"
-) -> JSONResponse:
-    """
-    Standard paginated response format.
-    
-    Args:
-        data: The response data (list of items)
-        total: Total number of items
-        page: Current page number
-        page_size: Number of items per page
-        message: Success message
-    
-    Returns:
-        JSONResponse with pagination metadata
-    """
-    response_data = {
+def paginated_response(data: list, total: int, page: int, page_size: int, message: str = "OK"):
+    body = {
         "success": True,
         "message": message,
         "data": data,
         "pagination": {
-            "total": total,
             "page": page,
             "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size if page_size > 0 else 0
-        }
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size if page_size else 0,
+        },
     }
-    return JSONResponse(content=response_data)
+    return JSONResponse(status_code=200, content=_jsonable(body))
 
 
-def error_response(
-    message: str = "Error",
-    errors: Optional[Dict[str, Any]] = None,
-    status_code: int = 400
-) -> JSONResponse:
-    """
-    Standard error response format.
-    
-    Args:
-        message: Error message
-        errors: Detailed error information
-        status_code: HTTP status code
-    
-    Returns:
-        JSONResponse with error format
-    """
-    response_data = {
-        "success": False,
-        "message": message,
-        "errors": errors
-    }
-    return JSONResponse(content=response_data, status_code=status_code)
+def _jsonable(obj):
+    """Recursively coerce Enum members to their .value so JSONResponse doesn't choke."""
+    from enum import Enum
+
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_jsonable(v) for v in obj]
+    return obj

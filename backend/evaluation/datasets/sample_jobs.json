@@ -1,0 +1,18 @@
+[
+  {
+    "id": "job_001",
+    "job_title": "Senior Python AI Engineer",
+    "job_description": "We are looking for a Python developer with 2+ years of experience. Required: Python, FastAPI, Django, LLM, RAG, PostgreSQL, Docker. Preferred: LangChain, LangGraph, AWS, Azure.",
+    "expected_required_skills": ["Python", "FastAPI", "Django", "LLM", "RAG", "PostgreSQL", "Docker"],
+    "expected_preferred_skills": ["LangChain", "LangGraph", "AWS", "Azure"],
+    "expected_minimum_experience_years": 2
+  },
+  {
+    "id": "job_002",
+    "job_title": "Junior Backend Developer",
+    "job_description": "Entry-level backend role. Required: Python, Flask, SQL, Git. No prior professional experience required, internships welcome. Preferred: Docker, basic AWS knowledge.",
+    "expected_required_skills": ["Python", "Flask", "SQL", "Git"],
+    "expected_preferred_skills": ["Docker", "AWS"],
+    "expected_minimum_experience_years": 0
+  }
+]

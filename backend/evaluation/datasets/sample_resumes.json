@@ -1,0 +1,20 @@
+[
+  {
+    "id": "resume_001",
+    "resume_text": "Jane Doe\nSenior Backend Engineer\n\nSummary: Backend engineer with 5 years of experience building APIs and data pipelines in Python.\n\nSkills: Python, FastAPI, Django, PostgreSQL, Docker, AWS, RAG, LangChain\n\nExperience:\nSenior Backend Engineer, Acme Corp (2021-2024)\n- Built a FastAPI-based document processing system with RAG search over internal wikis.\n- Deployed services with Docker and AWS ECS.\n\nBackend Engineer, Startly Inc (2019-2021)\n- Built REST APIs with Django and PostgreSQL.\n\nEducation: BSc Computer Science, State University, 2019",
+    "expected_skills": ["Python", "FastAPI", "Django", "PostgreSQL", "Docker", "AWS", "RAG", "LangChain"],
+    "expected_experience_years": 5
+  },
+  {
+    "id": "resume_002",
+    "resume_text": "John Smith\nJunior Python Developer\n\nSummary: Recent graduate with 1 year of internship experience in Python web development.\n\nSkills: Python, Flask, SQL, Git\n\nExperience:\nSoftware Engineering Intern, DataWorks (2023-2024)\n- Built internal tools with Flask and SQL.\n\nEducation: BSc Software Engineering, Tech Institute, 2024",
+    "expected_skills": ["Python", "Flask", "SQL", "Git"],
+    "expected_experience_years": 1
+  },
+  {
+    "id": "resume_003",
+    "resume_text": "Maria Garcia\nAI/ML Engineer\n\nSummary: 3 years of experience building machine learning and LLM-based applications.\n\nSkills: Python, PyTorch, LangChain, LangGraph, FastAPI, pgvector, Sentence Transformers\n\nExperience:\nML Engineer, VisionAI (2022-2025)\n- Built a resume screening tool using LangGraph agents and pgvector semantic search.\n- Fine-tuned embedding models with Sentence Transformers.\n\nEducation: MSc Machine Learning, Tech University, 2022",
+    "expected_skills": ["Python", "PyTorch", "LangChain", "LangGraph", "FastAPI", "pgvector", "Sentence Transformers"],
+    "expected_experience_years": 3
+  }
+]

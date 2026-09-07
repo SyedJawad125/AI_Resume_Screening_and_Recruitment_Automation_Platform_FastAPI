@@ -1,139 +1,94 @@
 """
 app/schemas/user.py
-────────────────────
-Pydantic schemas for User, Role, Permission, Employee endpoints.
+─────────────────────
+Request/response schemas for users, roles, permissions, companies.
 """
-from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
+
+from pydantic import BaseModel, EmailStr, Field
 
 
-# ─── Permission ────────────────────────────────────────────────────
-
-class PermissionOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:           str
-    name:         str
-    code_name:    str
-    module_name:  str
-    module_label: Optional[str]
-    description:  str
-
-
-# ─── Role ──────────────────────────────────────────────────────────
-
-class RoleCreate(BaseModel):
-    name:        str
-    code_name:   str
-    description: str = ''
-
-    @field_validator('name', 'code_name')
-    @classmethod
-    def not_empty(cls, v):
-        if not v.strip():
-            raise ValueError('Field cannot be empty.')
-        return v.strip()
-
-
-class RoleUpdate(BaseModel):
-    name:           Optional[str] = None
-    description:    Optional[str] = None
-    permission_ids: Optional[list[str]] = None
-
-
-class RoleOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:          str
-    name:        str
-    code_name:   str
-    description: str
-    permissions: list[PermissionOut] = []
-    created_at:  datetime
-
-
-# ─── User ──────────────────────────────────────────────────────────
+# ── User ──────────────────────────────────────────────────────────
 
 class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:          str
-    email:       str
-    first_name:  str
-    last_name:   str
-    full_name:   Optional[str]
-    mobile:      Optional[str]
-    type:        str
-    is_active:   bool
-    is_verified: bool
-    is_blocked:  bool
-    role:        Optional[RoleOut]
-    created_at:  datetime
-
-
-class UserUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name:  Optional[str] = None
-    mobile:     Optional[str] = None
-    role_id:    Optional[str] = None
+    id: str
+    email: EmailStr
+    full_name: str
+    type: str
+    is_active: bool
+    is_blocked: bool
 
 
 class UserListOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:         str
-    email:      str
-    full_name:  Optional[str]
-    type:       str
-    is_active:  bool
+    id: str
+    email: EmailStr
+    full_name: str
+    type: str
+    is_active: bool
     is_blocked: bool
-    created_at: datetime
+    created_at: str
 
 
-# ─── Employee ──────────────────────────────────────────────────────
+class UserUpdate(BaseModel):
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    mobile: str | None = Field(default=None, max_length=35)
+    address: str | None = Field(default=None, max_length=255)
+    profile_image: str | None = None
 
-class EmployeeOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:     str
-    status: str
-    user:   Optional[UserOut]
+
+# ── Role ──────────────────────────────────────────────────────────
+
+class RoleCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    code_name: str = Field(min_length=1, max_length=50)
+    description: str = ""
 
 
-# ─── Company ──────────────────────────────────────────────────────
+class RoleUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    permission_ids: list[str] | None = None
+
+
+class RoleOut(BaseModel):
+    id: str
+    name: str
+    code_name: str
+    description: str
+
+
+# ── Permission ────────────────────────────────────────────────────
+
+class PermissionOut(BaseModel):
+    id: str
+    name: str
+    code_name: str
+    module_name: str
+    description: str
+
+
+# ── Company ───────────────────────────────────────────────────────
 
 class CompanyCreate(BaseModel):
-    name:        str
-    email:       Optional[str] = None
-    phone:       Optional[str] = None
-    address:     Optional[str] = None
-    website:     Optional[str] = None
-    description: Optional[str] = None
-
-    @field_validator('name')
-    @classmethod
-    def not_empty(cls, v):
-        if not v.strip():
-            raise ValueError('Company name cannot be empty.')
-        return v.strip().title()
+    name: str = Field(min_length=1, max_length=255)
+    email: EmailStr | None = None
+    phone: str | None = None
+    address: str | None = None
+    website: str | None = None
 
 
 class CompanyUpdate(BaseModel):
-    name:               Optional[str] = None
-    email:              Optional[str] = None
-    phone:              Optional[str] = None
-    address:            Optional[str] = None
-    website:            Optional[str] = None
-    description:        Optional[str] = None
-    subscription_plan:  Optional[str] = None
-    is_active:          Optional[bool] = None
+    name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    address: str | None = None
+    website: str | None = None
+    is_active: bool | None = None
 
 
 class CompanyOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id:                str
-    name:              str
-    slug:              str
-    email:             Optional[str]
-    phone:             Optional[str]
-    address:           Optional[str]
-    website:           Optional[str]
+    id: str
+    name: str
+    slug: str
     subscription_plan: str
-    is_active:         bool
-    created_at:        datetime
+    is_active: bool
