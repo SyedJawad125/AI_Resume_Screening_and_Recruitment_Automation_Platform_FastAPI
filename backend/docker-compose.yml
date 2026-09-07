@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: hiremind_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hiremind
+      POSTGRES_PASSWORD: hiremind
+      POSTGRES_DB: hiremind_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - hiremind_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hiremind -d hiremind_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hiremind_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hiremind_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - hiremind_uploads:/app/uploads
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hiremind_celery_worker
+    restart: unless-stopped
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - hiremind_uploads:/app/uploads
+
+volumes:
+  hiremind_pg_data:
+  hiremind_uploads:
