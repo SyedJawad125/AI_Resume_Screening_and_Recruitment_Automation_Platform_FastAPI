@@ -13,8 +13,9 @@ This build ships a running FastAPI app with:
 - **Jobs**: create (runs the Job Analysis Agent), list, detail
 - **Resume pipeline**: upload → queued instantly → Celery worker runs PyMuPDF extraction → Tesseract OCR fallback → Resume Parser Agent → structured `Candidate` → Sentence-Transformers embedding → pgvector. Poll `GET /api/v1/processing/{resume_id}` for status.
 - **LangChain**: every agent (Job Analysis, Resume Parser, Interview Question Generator, Interview Evaluator, and the LangGraph evaluation node) is built as `ChatPromptTemplate | ChatGroq.with_structured_output(PydanticModel)` — forced schema compliance via the model's native tool-calling, not hand-rolled `json.loads()`. See `app/llm/langchain_client.py`.
-- **Two LangGraph workflows**: (1) the recruitment scoring graph — `load_data → matching → evidence → evaluation → decision → shortlist/review_reject`; (2) a new RAG chat graph — `retrieve → generate`, exposed via `POST /api/v1/search/chat`.
-- **Streaming RAG chat**: `POST /api/v1/search/chat/stream` streams a grounded, candidate-cited answer token-by-token over SSE, built on a real LangChain `Runnable.astream()` — the same `prompt | llm | StrOutputParser()` chain backs both the streaming and non-streaming paths.
+- **Two LangGraph workflows**: (1) the recruitment scoring graph — `load_data → matching → evidence → evaluation → decision → shortlist/review_reject`; (2) an **agentic RAG graph** — `retrieve → grade → (rewrite_query → retrieve)* → generate` (Corrective RAG pattern), exposed via `POST /api/v1/search/chat`.
+- **Agentic RAG + streaming**: retrieval isn't a single pgvector query — an LLM grades whether retrieved candidates actually address the recruiter's question and, if not, rewrites the query and retries (bounded by `MAX_AGENT_ITERATIONS` + `AGENT_TIMEOUT`, toggle off with `USE_AGENT_MODE=false`). `POST /api/v1/search/chat/stream` streams the final grounded answer token-by-token over SSE once retrieval settles, using the same `prompt | llm | StrOutputParser()` chain as the non-streaming path.
+- **LangSmith tracing**: set `LANGCHAIN_API_KEY` in `.env` and every agent call, both graphs, and the grading/rewrite loop are automatically traced — wired once in `app/llm/langchain_client.py`, no per-call code.
 - **Matching Engine**: transparent, weighted, reproducible scoring — zero LLM calls in the scoring math itself, unit tested.
 - **Evidence retrieval**: grounded verbatim resume excerpts, never LLM-generated.
 - **Semantic search** over pgvector + **candidate comparison**.
@@ -22,9 +23,9 @@ This build ships a running FastAPI app with:
 - **Celery + Redis**: resume processing runs in a background worker, not on the request thread — uploads return `202 Accepted` immediately even for large batches.
 - **Evaluation framework**: synthetic resume/job datasets, precision/recall/F1 on skill extraction, experience-extraction accuracy with tolerance, latency/token/cost tracking, and a mocked-LLM test suite that verifies the whole metrics pipeline without hitting a paid API.
 - Docker Compose (pgvector-enabled Postgres + Redis + backend + Celery worker, all with healthchecks)
-- 21 automated tests, all passing without any live external service
+- 19 automated tests, all passing without any live external service (LLM calls mocked at the LangChain boundary — including the agentic loop's grading/rewriting decisions)
 
-**Still open** (by design, not oversight): SSE streaming for a live RAG chat endpoint, rate limiting/observability middleware, and the Next.js frontend. These are smaller, more mechanical additions on top of what's here.
+**Still open** (by design, not oversight): rate limiting/observability middleware, and the Next.js frontend.
 
 ## Getting Started
 

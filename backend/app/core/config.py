@@ -44,6 +44,24 @@ class Settings(BaseSettings):
     OCR_PROVIDER: str = "TESSERACT"
     OCR_API_KEY: str = ""
 
+    # LangSmith tracing — set LANGCHAIN_API_KEY to enable. When set, every
+    # LangChain/LangGraph call (agents, both RAG graphs) is automatically
+    # traced with no per-call code changes, since LangChain reads these
+    # directly from the process environment (see app/llm/langchain_client.py).
+    LANGCHAIN_API_KEY: str = ""
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGCHAIN_PROJECT: str = "hiremind-ai"
+
+    # Agentic RAG (self-correcting retrieve -> grade -> rewrite -> retry loop)
+    USE_AGENT_MODE: bool = True
+    MAX_AGENT_ITERATIONS: int = 3
+    AGENT_TIMEOUT: int = 120
+    GRADING_THRESHOLD: float = 0.6
+    ENABLE_QUERY_REWRITE: bool = True
+
+    # RAG retrieval tuning
+    RELEVANCE_THRESHOLD: float = 0.3
+
     # File uploads
     MAX_RESUME_FILE_SIZE_MB: int = 10
     ALLOWED_RESUME_EXTENSIONS: str = ".pdf,.docx"

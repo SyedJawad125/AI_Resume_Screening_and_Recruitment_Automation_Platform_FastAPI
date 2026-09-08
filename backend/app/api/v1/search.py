@@ -1,8 +1,8 @@
 """
 app/api/v1/search.py
 ────────────────────────
-POST /api/v1/search/candidates       → retrieval only (ranked candidate list)
-POST /api/v1/search/chat             → retrieval + grounded LLM answer (LangGraph: retrieve → generate)
+POST /api/v1/search/candidates       → retrieval only (ranked candidate list, no agent loop)
+POST /api/v1/search/chat             → agentic RAG (retrieve → grade → rewrite → retry) + grounded answer
 POST /api/v1/search/chat/stream      → same, streamed token-by-token over SSE
 """
 
@@ -18,8 +18,7 @@ from app.dependencies.auth import get_current_user, require_permission
 from app.core.exceptions import ValidationError
 from app.models.user import User
 from app.services.search_service import semantic_search_candidates
-from app.services.rag_chat_service import retrieve_then_stream
-from app.workflows.rag_chat_graph import run_rag_chat
+from app.services.rag_chat_service import retrieve_and_answer, retrieve_then_stream
 from app.utils.response import success_response
 
 router = APIRouter()
@@ -34,6 +33,8 @@ class SearchRequest(BaseModel):
 async def search_candidates(
     payload: SearchRequest, current_user: User = Depends(require_permission("can_search_candidates")), db: AsyncSession = Depends(get_db)
 ):
+    """Plain retrieval — one pgvector query, no grading/rewriting/LLM calls.
+    Use this when you just want the ranked list fast and cheap."""
     if not current_user.company_id:
         raise ValidationError("Your account is not associated with a company yet.")
 
@@ -47,23 +48,29 @@ async def search_candidates(
 async def chat_candidates(
     payload: SearchRequest, current_user: User = Depends(require_permission("can_search_candidates")), db: AsyncSession = Depends(get_db)
 ):
-    """Runs the 2-node LangGraph RAG workflow (retrieve → generate) and
-    returns a complete grounded answer plus the candidates it was grounded in."""
+    """Agentic RAG: runs the LangGraph retrieve → grade → rewrite-and-retry
+    loop (bounded by MAX_AGENT_ITERATIONS/AGENT_TIMEOUT) before generating a
+    grounded answer. Response includes `retrieval_meta` so the recruiter/UI
+    can see how much work the agent did and whether the final match is
+    low-confidence."""
     if not current_user.company_id:
         raise ValidationError("Your account is not associated with a company yet.")
 
-    final_state = await run_rag_chat(db, str(current_user.company_id), payload.query, payload.top_k)
-    return success_response({"answer": final_state["answer"], "sources": final_state["retrieved_candidates"]})
+    result = await retrieve_and_answer(db, str(current_user.company_id), payload.query, payload.top_k)
+    return success_response(result)
 
 
 @router.post("/chat/stream")
 async def chat_candidates_stream(
     payload: SearchRequest, current_user: User = Depends(require_permission("can_search_candidates")), db: AsyncSession = Depends(get_db)
 ):
-    """Same grounded RAG answer as /chat, but streamed as Server-Sent Events
-    so the frontend can render tokens as they arrive instead of waiting for
-    the full response. Event types: 'sources' (once, up front), 'token'
-    (repeated), 'done' (once, at the end)."""
+    """Same agentic RAG pipeline as /chat, but streamed as Server-Sent
+    Events. The retrieve/grade/rewrite loop runs first (it needs multiple
+    sequential LLM calls and isn't meaningfully streamable), then the
+    generation chain's tokens stream as they're produced.
+
+    Event order: 'retrieval_meta' (once) → 'sources' (once) →
+    'token' (repeated) → 'done' (once)."""
     if not current_user.company_id:
         raise ValidationError("Your account is not associated with a company yet.")
 
