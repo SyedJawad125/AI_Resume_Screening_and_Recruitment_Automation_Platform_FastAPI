@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_permission
 from app.models.user import User
 from app.schemas.interview import CreateInterviewRequest, SubmitAnswersRequest
 from app.services.interview_service import (
@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post("/", status_code=201)
 async def create_interview_endpoint(
-    payload: CreateInterviewRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    payload: CreateInterviewRequest, current_user: User = Depends(require_permission("can_create_interview")), db: AsyncSession = Depends(get_db)
 ):
     interview = await create_interview(db, payload.job_id, payload.candidate_id, payload.num_questions)
     interview = await get_interview_with_questions(db, str(interview.id))
@@ -43,7 +43,7 @@ async def get_interview_endpoint(
 async def submit_answers_endpoint(
     interview_id: str,
     payload: SubmitAnswersRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("can_submit_interview_answers")),
     db: AsyncSession = Depends(get_db),
 ):
     interview = await submit_answers(db, interview_id, payload.answers)
@@ -52,7 +52,7 @@ async def submit_answers_endpoint(
 
 @router.post("/{interview_id}/evaluate")
 async def evaluate_interview_endpoint(
-    interview_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    interview_id: str, current_user: User = Depends(require_permission("can_evaluate_interview")), db: AsyncSession = Depends(get_db)
 ):
     result = await run_evaluation(db, interview_id)
     return success_response(_evaluation_to_dict(result))
