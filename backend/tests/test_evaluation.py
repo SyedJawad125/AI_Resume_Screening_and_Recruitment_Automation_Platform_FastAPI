@@ -4,53 +4,44 @@ tests/test_evaluation.py
 Verifies the evaluation metrics pipeline works correctly WITHOUT calling
 a real LLM — per the architecture doc's testing rule: "Use mocked LLM
 responses in normal CI tests. Do not require a paid LLM API for every
-test." The LLM client is patched to return a canned, deterministic JSON
-response; everything downstream (Pydantic validation, metric computation)
-runs for real.
+test." `generate_structured` (the LangChain call site every agent uses)
+is patched to return a canned, already-validated Pydantic object;
+everything downstream (metric computation) runs for real.
 """
 
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.agents.resume_parser_agent import parse_resume
 from app.agents.job_analysis_agent import analyze_job_description
+from app.schemas.candidate import ResumeParseResult
+from app.schemas.job import JobAnalysisResult
 from app.evaluation.metrics import compute_extraction_metrics, experience_extraction_accuracy
 
 
-MOCK_RESUME_RESPONSE = {
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "phone": None,
-    "location": None,
-    "summary": "Backend engineer.",
-    "experience_years": 5,
-    "skills": ["Python", "FastAPI", "PostgreSQL"],
-    "education": [],
-    "work_experience": [],
-    "projects": [],
-    "certifications": [],
-    "languages": [],
-}
+MOCK_RESUME_RESULT = ResumeParseResult(
+    name="Jane Doe",
+    email="jane@example.com",
+    summary="Backend engineer.",
+    experience_years=5,
+    skills=["Python", "FastAPI", "PostgreSQL"],
+)
 
-MOCK_JOB_RESPONSE = {
-    "job_title": "Senior Python AI Engineer",
-    "required_skills": ["Python", "FastAPI", "PostgreSQL"],
-    "preferred_skills": ["AWS"],
-    "minimum_experience_years": 2,
-    "education_requirements": [],
-    "responsibilities": [],
-    "skill_weights": {"Python": 1.0},
-}
+MOCK_JOB_RESULT = JobAnalysisResult(
+    job_title="Senior Python AI Engineer",
+    required_skills=["Python", "FastAPI", "PostgreSQL"],
+    preferred_skills=["AWS"],
+    minimum_experience_years=2,
+    skill_weights={"Python": 1.0},
+)
 
 
 @pytest.mark.asyncio
 async def test_resume_parser_agent_with_mocked_llm():
-    fake_llm_result = object()  # LLMResult metadata isn't asserted on here
     with patch(
-        "app.agents.resume_parser_agent.llm_client.generate_json",
-        new=AsyncMock(return_value=(MOCK_RESUME_RESPONSE, fake_llm_result)),
+        "app.agents.resume_parser_agent.generate_structured",
+        new=AsyncMock(return_value=MOCK_RESUME_RESULT),
     ):
         result = await parse_resume("irrelevant resume text — LLM call is mocked")
 
@@ -68,10 +59,9 @@ async def test_resume_parser_agent_with_mocked_llm():
 
 @pytest.mark.asyncio
 async def test_job_analysis_agent_with_mocked_llm():
-    fake_llm_result = object()
     with patch(
-        "app.agents.job_analysis_agent.llm_client.generate_json",
-        new=AsyncMock(return_value=(MOCK_JOB_RESPONSE, fake_llm_result)),
+        "app.agents.job_analysis_agent.generate_structured",
+        new=AsyncMock(return_value=MOCK_JOB_RESULT),
     ):
         result = await analyze_job_description("Senior Python AI Engineer", "irrelevant — mocked")
 

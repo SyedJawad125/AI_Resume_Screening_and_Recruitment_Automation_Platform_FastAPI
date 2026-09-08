@@ -21,7 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.embeddings.service import embed_text
-from app.llm.client import llm_client
+from app.llm.langchain_client import generate_structured
+from app.schemas.workflow import WorkflowEvaluationOutput
 from app.models.candidate import Candidate
 from app.models.embedding import CandidateEmbedding, EmbeddingKind
 from app.models.job import Job
@@ -32,11 +33,12 @@ from app.workflows.state import RecruitmentState
 
 EVALUATION_SYSTEM_PROMPT = """You are a technical recruiting evaluator. You are given a \
 candidate's matched skills, missing skills, and grounded evidence excerpts from their resume. \
-Write a short qualitative summary (2-3 sentences) of the candidate's fit. \
-Do NOT invent skills, experience, or facts not present in the input. \
-Do NOT assign or mention a numeric score — a separate deterministic system already computed that. \
-Respond with ONLY this JSON object:
-{"summary": string, "strengths": [string]}"""
+Write a short qualitative summary of the candidate's fit and list concrete strengths, into \
+the provided schema.
+
+Rules:
+- Do NOT invent skills, experience, or facts not present in the input.
+- Do NOT assign or mention a numeric score — a separate deterministic system already computed that."""
 
 
 async def load_data_node(state: RecruitmentState, db) -> dict:
@@ -148,8 +150,8 @@ async def evaluation_node(state: RecruitmentState, db=None) -> dict:
     )
 
     try:
-        raw, _ = await llm_client.generate_json(EVALUATION_SYSTEM_PROMPT, user_prompt)
-        return {"llm_summary": raw.get("summary", ""), "llm_strengths": raw.get("strengths", [])}
+        result = await generate_structured(EVALUATION_SYSTEM_PROMPT, user_prompt, WorkflowEvaluationOutput)
+        return {"llm_summary": result.summary, "llm_strengths": result.strengths}
     except Exception:
         # Qualitative narration is a nice-to-have; never fail the whole
         # workflow because the LLM narration call hiccuped.
