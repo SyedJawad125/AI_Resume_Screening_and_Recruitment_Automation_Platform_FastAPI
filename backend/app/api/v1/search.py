@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_permission
 from app.core.exceptions import ValidationError
 from app.models.user import User
 from app.services.search_service import semantic_search_candidates
@@ -30,7 +30,7 @@ class SearchRequest(BaseModel):
 
 @router.post("/candidates")
 async def search_candidates(
-    payload: SearchRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    payload: SearchRequest, current_user: User = Depends(require_permission("can_search_candidates")), db: AsyncSession = Depends(get_db)
 ):
     if not current_user.company_id:
         raise ValidationError("Your account is not associated with a company yet.")
