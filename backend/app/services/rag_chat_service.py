@@ -1,23 +1,18 @@
 """
 app/services/rag_chat_service.py
 ─────────────────────────────────────
-The generation half of RAG (the retrieval half is search_service.py's
-`semantic_search_candidates`). Built as a proper LangChain
-Runnable — `prompt | llm | StrOutputParser()` — so it supports both
-`.ainvoke()` (for the non-streaming endpoint / LangGraph node) and
-`.astream()` (for the SSE streaming endpoint) with the exact same chain.
-
-Grounding discipline: the prompt hands the model ONLY the retrieved
-candidates' summaries/skills/evidence, and instructs it to answer solely
-from that context and cite candidates by name — this is what keeps the
-"AI Search" answer from turning into an ungrounded guess.
+The generation half of RAG. Retrieval quality is now owned by the
+agentic graph in rag_chat_graph.py (retrieve -> grade -> rewrite -> retry);
+this module takes whatever candidates that graph settled on and turns
+them into a recruiter-facing answer — via `.ainvoke()` for a complete
+response or `.astream()` for token-by-token SSE.
 """
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.llm.langchain_client import get_chat_model
-from app.services.search_service import semantic_search_candidates
+from app.workflows.rag_chat_graph import run_agentic_retrieval
 
 RAG_SYSTEM_PROMPT = """You are a recruiting assistant answering a recruiter's question about \
 candidates in their pipeline. You are given a set of retrieved candidate profiles (name, \
@@ -63,26 +58,51 @@ def build_rag_chain():
 
 
 async def retrieve_and_answer(db, company_id: str, question: str, top_k: int = 10) -> dict:
-    """Non-streaming path: retrieve, then invoke the chain once for a
-    complete answer. Used by the LangGraph node and the plain POST endpoint."""
-    candidates = await semantic_search_candidates(db, company_id, question, top_k)
+    """Non-streaming path: run the agentic retrieval loop, then invoke the
+    generation chain once for a complete answer. Used by the plain POST
+    endpoint. Returns retrieval metadata (iterations used, confidence) so
+    the recruiter can see when the agent had to work harder to find a match."""
+    retrieval = await run_agentic_retrieval(db, company_id, question, top_k)
+
     chain = build_rag_chain()
-    answer = await chain.ainvoke({"context": format_candidates_context(candidates), "question": question})
-    return {"answer": answer, "sources": candidates}
+    answer = await chain.ainvoke(
+        {"context": format_candidates_context(retrieval["retrieved_candidates"]), "question": question}
+    )
+
+    return {
+        "answer": answer,
+        "sources": retrieval["retrieved_candidates"],
+        "retrieval_meta": {
+            "final_query": retrieval["current_query"],
+            "iterations_used": retrieval["iteration"],
+            "low_confidence": retrieval["low_confidence"],
+            "grade_score": retrieval.get("grade_score"),
+        },
+    }
 
 
 async def retrieve_then_stream(db, company_id: str, question: str, top_k: int = 10):
-    """Streaming path for the SSE endpoint: retrieval still happens
-    up-front (it's fast — a single pgvector query), then the chain's
-    token stream is yielded as it's generated. Yields the candidate list
-    first (as a labeled SSE event) so the frontend can render "searching
-    N candidates..." before tokens start arriving, then yields text chunks."""
-    candidates = await semantic_search_candidates(db, company_id, question, top_k)
+    """Streaming path for the SSE endpoint: the agentic retrieve/grade/
+    rewrite loop still runs up-front (it's the part that needs multiple
+    LLM round-trips and isn't naturally streamable), then the generation
+    chain's token stream is yielded as it's produced. Event order:
+    'retrieval_meta' (once) -> 'sources' (once) -> 'token' (repeated) -> 'done'."""
+    retrieval = await run_agentic_retrieval(db, company_id, question, top_k)
     chain = build_rag_chain()
 
-    yield {"event": "sources", "data": candidates}
+    yield {
+        "event": "retrieval_meta",
+        "data": {
+            "iterations_used": retrieval["iteration"],
+            "low_confidence": retrieval["low_confidence"],
+            "grade_score": retrieval.get("grade_score"),
+        },
+    }
+    yield {"event": "sources", "data": retrieval["retrieved_candidates"]}
 
-    async for chunk in chain.astream({"context": format_candidates_context(candidates), "question": question}):
+    async for chunk in chain.astream(
+        {"context": format_candidates_context(retrieval["retrieved_candidates"]), "question": question}
+    ):
         yield {"event": "token", "data": chunk}
 
     yield {"event": "done", "data": None}

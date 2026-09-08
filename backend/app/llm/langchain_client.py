@@ -25,6 +25,20 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.config import settings
 from app.core.exceptions import AppException
 
+# ── LangSmith tracing ────────────────────────────────────────────────
+# LangChain reads these directly from the process environment — there is
+# no per-call "enable tracing" argument. Setting them once here, at the
+# single module every LangChain-using file imports through, means every
+# agent call, every workflow node, and both RAG graphs get traced
+# automatically the moment LANGCHAIN_API_KEY is set in .env. No other
+# file in the app needs to know tracing exists.
+if settings.LANGCHAIN_API_KEY:
+    import os
+
+    os.environ["LANGCHAIN_TRACING_V2"] = "true" if settings.LANGCHAIN_TRACING_V2 else "false"
+    os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
+    os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+
 T = TypeVar("T", bound=BaseModel)
 
 
