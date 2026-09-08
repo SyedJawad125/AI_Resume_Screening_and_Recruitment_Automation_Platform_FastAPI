@@ -2,8 +2,9 @@
 tests/test_rag_chat.py
 ────────────────────────────
 Verifies the RAG chat streaming generator produces the right event
-sequence (sources → token* → done) without a live LLM or database —
-`semantic_search_candidates` and the LangChain chain are both mocked.
+sequence (retrieval_meta → sources → token* → done) without a live LLM,
+database, or agentic loop — `run_agentic_retrieval` and the LangChain
+generation chain are both mocked.
 """
 
 from unittest.mock import AsyncMock, patch
@@ -24,6 +25,17 @@ FAKE_CANDIDATES = [
         "matched_evidence": "Built a FastAPI-based RAG system.",
     }
 ]
+
+FAKE_RETRIEVAL_RESULT = {
+    "original_question": "Who knows FastAPI?",
+    "current_query": "Who knows FastAPI?",
+    "retrieved_candidates": FAKE_CANDIDATES,
+    "grade_relevant": True,
+    "grade_score": 0.9,
+    "grade_reasoning": "Directly relevant.",
+    "iteration": 0,
+    "low_confidence": False,
+}
 
 
 class _FakeChain:
@@ -50,8 +62,8 @@ def test_format_candidates_context_includes_key_fields():
 async def test_retrieve_then_stream_event_sequence():
     with (
         patch(
-            "app.services.rag_chat_service.semantic_search_candidates",
-            new=AsyncMock(return_value=FAKE_CANDIDATES),
+            "app.services.rag_chat_service.run_agentic_retrieval",
+            new=AsyncMock(return_value=FAKE_RETRIEVAL_RESULT),
         ),
         patch(
             "app.services.rag_chat_service.build_rag_chain",
@@ -60,8 +72,12 @@ async def test_retrieve_then_stream_event_sequence():
     ):
         events = [e async for e in retrieve_then_stream(db=None, company_id="fake-co", question="Who knows FastAPI?")]
 
-    assert events[0]["event"] == "sources"
-    assert events[0]["data"] == FAKE_CANDIDATES
+    assert events[0]["event"] == "retrieval_meta"
+    assert events[0]["data"]["iterations_used"] == 0
+    assert events[0]["data"]["low_confidence"] is False
+
+    assert events[1]["event"] == "sources"
+    assert events[1]["data"] == FAKE_CANDIDATES
 
     token_events = [e for e in events if e["event"] == "token"]
     assert len(token_events) == 3
