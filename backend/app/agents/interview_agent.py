@@ -3,29 +3,24 @@ app/agents/interview_agent.py
 ─────────────────────────────────
 Responsibilities:
   - Generate interview questions tailored to the job's required/preferred
-    skills and the specific candidate's background (so questions probe
-    gaps and claims, not generic trivia).
+    skills and the specific candidate's background.
+
+LangChain structured-output pattern, same as the other agents.
 """
 
-from pydantic import ValidationError as PydanticValidationError
-
-from app.llm.client import llm_client
+from app.llm.langchain_client import generate_structured
 from app.schemas.interview import QuestionGenerationResult
-from app.core.exceptions import AppException
 
 SYSTEM_PROMPT = """You are a senior technical interviewer. Given a job's required skills \
 and a candidate's profile, generate interview questions that probe real understanding — \
 not textbook trivia. Mix conceptual, practical, and system-design questions relevant to \
-the job's actual tech stack. Respond with ONLY this JSON object:
-
-{"questions": [{"question": string, "topic": string}]}
+the job's actual tech stack.
 
 Rules:
 - Generate exactly the requested number of questions.
 - Base questions on the job's required_skills/preferred_skills and the candidate's stated skills.
 - Prefer questions that let a strong candidate demonstrate depth (e.g. "how would you design/debug/optimize X"
-  rather than "define X").
-- Respond with raw JSON only — no markdown, no commentary."""
+  rather than "define X")."""
 
 
 async def generate_interview_questions(
@@ -43,12 +38,6 @@ async def generate_interview_questions(
         f"Number of questions to generate: {num_questions}"
     )
 
-    raw, _ = await llm_client.generate_json(SYSTEM_PROMPT, user_prompt)
-
-    try:
-        result = QuestionGenerationResult.model_validate(raw)
-    except PydanticValidationError as exc:
-        raise AppException(f"LLM returned questions that don't match the expected schema: {exc}")
-
+    result = await generate_structured(SYSTEM_PROMPT, user_prompt, QuestionGenerationResult)
     result.questions = result.questions[:num_questions]
     return result

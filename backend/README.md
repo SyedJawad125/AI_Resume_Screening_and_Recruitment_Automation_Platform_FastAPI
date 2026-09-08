@@ -3,7 +3,8 @@
 AI-Powered Resume Screening & Recruitment Automation Platform (API only — Next.js frontend comes later).
 
 ## Stack
-FastAPI · SQLAlchemy 2.x (async) · PostgreSQL · Alembic · JWT auth · Docker
+FastAPI · SQLAlchemy 2.x (async) · PostgreSQL + pgvector · Alembic · JWT auth · Docker
+**AI:** LangChain (structured output via tool-calling, prompt templates, streaming chains) + LangGraph (2 compiled state machines) + langchain-groq (ChatGroq) + Sentence-Transformers + PyMuPDF/Tesseract
 
 ## Status: Core platform complete — Auth, Jobs, Resume Pipeline, Matching, Search, Interviews, Async Processing, Evaluation
 This build ships a running FastAPI app with:
@@ -11,7 +12,9 @@ This build ships a running FastAPI app with:
 - Full auth flow + dynamic RBAC (`User`, `Role`, `Permission`, `Company`, `UserToken`)
 - **Jobs**: create (runs the Job Analysis Agent), list, detail
 - **Resume pipeline**: upload → queued instantly → Celery worker runs PyMuPDF extraction → Tesseract OCR fallback → Resume Parser Agent → structured `Candidate` → Sentence-Transformers embedding → pgvector. Poll `GET /api/v1/processing/{resume_id}` for status.
-- **LangGraph workflow**: the matching pipeline (load_data → matching → evidence → evaluation → decision → shortlist/review_reject branch) is an explicit compiled `StateGraph`, not just sequential function calls — see `app/workflows/`.
+- **LangChain**: every agent (Job Analysis, Resume Parser, Interview Question Generator, Interview Evaluator, and the LangGraph evaluation node) is built as `ChatPromptTemplate | ChatGroq.with_structured_output(PydanticModel)` — forced schema compliance via the model's native tool-calling, not hand-rolled `json.loads()`. See `app/llm/langchain_client.py`.
+- **Two LangGraph workflows**: (1) the recruitment scoring graph — `load_data → matching → evidence → evaluation → decision → shortlist/review_reject`; (2) a new RAG chat graph — `retrieve → generate`, exposed via `POST /api/v1/search/chat`.
+- **Streaming RAG chat**: `POST /api/v1/search/chat/stream` streams a grounded, candidate-cited answer token-by-token over SSE, built on a real LangChain `Runnable.astream()` — the same `prompt | llm | StrOutputParser()` chain backs both the streaming and non-streaming paths.
 - **Matching Engine**: transparent, weighted, reproducible scoring — zero LLM calls in the scoring math itself, unit tested.
 - **Evidence retrieval**: grounded verbatim resume excerpts, never LLM-generated.
 - **Semantic search** over pgvector + **candidate comparison**.
@@ -134,7 +137,6 @@ hiremind-ai-backend/
 ## Remaining Work
 | Item | Notes |
 |---|---|
-| SSE streaming | A `/search/candidates/stream` endpoint that streams the LLM's grounded-answer tokens; retrieval logic already exists in `search_service.py`, this is a thin streaming wrapper |
 | Rate limiting / structured observability | `slowapi` or a Redis-backed limiter + structured request/LLM-call logging middleware |
 | Frontend | Next.js — not started, per your instructions to do backend only for now |
 
