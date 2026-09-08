@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user, require_superuser
+from app.dependencies.auth import get_current_user, require_permission
 from app.models.user import User, Permission
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
@@ -45,6 +45,9 @@ router = APIRouter()
 
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_user)):
+    permissions = (
+        [p.code_name for p in current_user.role.permissions] if current_user.role else []
+    )
     return success_response(
         {
             "id": str(current_user.id),
@@ -56,6 +59,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
             "type": current_user.type,
             "is_active": current_user.is_active,
             "is_verified": current_user.is_verified,
+            "is_superuser": current_user.is_superuser,
             "role": (
                 {
                     "id": str(current_user.role.id),
@@ -65,6 +69,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
                 if current_user.role
                 else None
             ),
+            # Superusers implicitly have every permission (see User.has_perm) —
+            # reflect that in the response rather than showing an empty list.
+            "permissions": ["*"] if current_user.is_superuser else permissions,
             "company_id": str(current_user.company_id) if current_user.company_id else None,
         }
     )
@@ -98,7 +105,7 @@ async def update_me(
 async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: User = Depends(require_superuser),
+    admin: User = Depends(require_permission("can_view_users")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
@@ -132,7 +139,7 @@ async def _list_all_users(db, page, page_size):
 
 
 @router.get("/{user_id}")
-async def get_user(user_id: str, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def get_user(user_id: str, admin: User = Depends(require_permission("can_view_users")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
@@ -152,7 +159,7 @@ async def get_user(user_id: str, admin: User = Depends(require_superuser), db: A
 
 
 @router.patch("/{user_id}/block")
-async def toggle_block(user_id: str, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def toggle_block(user_id: str, admin: User = Depends(require_permission("can_block_users")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
@@ -196,7 +203,7 @@ async def list_permissions(current_user: User = Depends(get_current_user), db: A
 # ─────────────────────────────────────────────────────────────────
 
 @router.get("/roles/")
-async def list_roles(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_roles(current_user: User = Depends(require_permission("can_view_roles")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     roles = await repo.list_roles()
     data = [
@@ -212,7 +219,7 @@ async def list_roles(current_user: User = Depends(get_current_user), db: AsyncSe
 
 
 @router.post("/roles/")
-async def create_role(payload: RoleCreate, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def create_role(payload: RoleCreate, admin: User = Depends(require_permission("can_create_role")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     if await repo.get_role_by_code(payload.code_name):
         raise ValidationError(f'Role with code_name "{payload.code_name}" already exists.')
@@ -228,7 +235,7 @@ async def create_role(payload: RoleCreate, admin: User = Depends(require_superus
 
 @router.patch("/roles/{role_id}")
 async def update_role(
-    role_id: str, payload: RoleUpdate, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)
+    role_id: str, payload: RoleUpdate, admin: User = Depends(require_permission("can_update_role")), db: AsyncSession = Depends(get_db)
 ):
     repo = UserRepository(db)
     role = await repo.get_role_by_id(role_id)
@@ -249,7 +256,7 @@ async def update_role(
 
 
 @router.delete("/roles/{role_id}")
-async def delete_role(role_id: str, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def delete_role(role_id: str, admin: User = Depends(require_permission("can_delete_role")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     role = await repo.get_role_by_id(role_id)
     if not role:
@@ -270,7 +277,7 @@ async def delete_role(role_id: str, admin: User = Depends(require_superuser), db
 async def list_companies(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: User = Depends(require_superuser),
+    admin: User = Depends(require_permission("can_view_companies")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
@@ -290,7 +297,7 @@ async def list_companies(
 
 
 @router.post("/companies/")
-async def create_company(payload: CompanyCreate, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def create_company(payload: CompanyCreate, admin: User = Depends(require_permission("can_manage_companies")), db: AsyncSession = Depends(get_db)):
     from slugify import slugify
 
     repo = UserRepository(db)
@@ -311,7 +318,7 @@ async def create_company(payload: CompanyCreate, admin: User = Depends(require_s
 
 @router.patch("/companies/{company_id}")
 async def update_company(
-    company_id: str, payload: CompanyUpdate, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)
+    company_id: str, payload: CompanyUpdate, admin: User = Depends(require_permission("can_manage_companies")), db: AsyncSession = Depends(get_db)
 ):
     repo = UserRepository(db)
     company = await repo.get_company_by_id(company_id)
@@ -325,7 +332,7 @@ async def update_company(
 
 
 @router.delete("/companies/{company_id}")
-async def delete_company(company_id: str, admin: User = Depends(require_superuser), db: AsyncSession = Depends(get_db)):
+async def delete_company(company_id: str, admin: User = Depends(require_permission("can_manage_companies")), db: AsyncSession = Depends(get_db)):
     repo = UserRepository(db)
     company = await repo.get_company_by_id(company_id)
     if not company:
