@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_permission
 from app.core.exceptions import ValidationError, NotFoundError
 from app.models.user import User
 from app.models.application import Application
@@ -38,7 +38,7 @@ def _require_company(current_user: User) -> str:
 @router.post("/", status_code=201)
 async def create_job_endpoint(
     payload: JobCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("can_create_job")),
     db: AsyncSession = Depends(get_db),
 ):
     company_id = _require_company(current_user)
@@ -51,7 +51,7 @@ async def create_job_endpoint(
 async def list_jobs_endpoint(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("can_view_jobs")),
     db: AsyncSession = Depends(get_db),
 ):
     company_id = _require_company(current_user)
@@ -64,7 +64,9 @@ async def list_jobs_endpoint(
 
 
 @router.get("/{job_id}")
-async def get_job_endpoint(job_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_job_endpoint(
+    job_id: str, current_user: User = Depends(require_permission("can_view_jobs")), db: AsyncSession = Depends(get_db)
+):
     job = await get_job_with_requirement(db, job_id)
     return success_response(_job_to_dict(job))
 
@@ -73,7 +75,7 @@ async def get_job_endpoint(job_id: str, current_user: User = Depends(get_current
 async def upload_resumes_endpoint(
     job_id: str,
     files: list[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("can_upload_resume")),
     db: AsyncSession = Depends(get_db),
 ):
     """Accepts multiple resume files. Each is saved and queued immediately
@@ -106,7 +108,9 @@ async def upload_resumes_endpoint(
 
 
 @router.post("/{job_id}/screen")
-async def screen_job_endpoint(job_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def screen_job_endpoint(
+    job_id: str, current_user: User = Depends(require_permission("can_screen_candidates")), db: AsyncSession = Depends(get_db)
+):
     await get_job_with_requirement(db, job_id)
     applications = await screen_all_candidates_for_job(db, job_id)
     return success_response({"screened_count": len(applications)})
@@ -115,7 +119,7 @@ async def screen_job_endpoint(job_id: str, current_user: User = Depends(get_curr
 @router.get("/{job_id}/candidates")
 async def list_scored_candidates_endpoint(
     job_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("can_view_candidates")),
     db: AsyncSession = Depends(get_db),
 ):
     await get_job_with_requirement(db, job_id)
