@@ -7,6 +7,12 @@ pydantic==2.9.2
 pydantic-settings==2.5.2
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# passlib 1.7.4 (last released 2020) runs a startup self-test against the
+# bcrypt backend that crashes on bcrypt>=4.1 with a spurious
+# "password cannot be longer than 72 bytes" error, even for short
+# passwords. Pin bcrypt below that line until passlib cuts a new release.
+bcrypt==4.0.1
+bcrypt==4.0.1
 python-multipart==0.0.9
 python-slugify==8.0.4
 email-validator==2.2.0
