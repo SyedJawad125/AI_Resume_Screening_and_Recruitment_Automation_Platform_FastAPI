@@ -118,7 +118,7 @@ async def populate():
         company = (await db.execute(select(Company).where(Company.slug == "hiremind-demo"))).scalar_one_or_none()
 
         if not company:
-            company = Company(name="HireMind Demo Co", slug="hiremind-demo", email="admin@hiremind-demo.test")
+            company = Company(name="HireMind Demo Co", slug="hiremind-demo", email="admin@hiremind-demo.io")
             db.add(company)
             await db.flush()
             print("✅ Default company created")
@@ -132,7 +132,7 @@ async def populate():
         if not admin_user:
             admin_user = User(
                 username="admin",
-                email="admin@hiremind-demo.test",
+                email="admin@hiremind-demo.io",
                 first_name="Admin",
                 last_name="User",
                 full_name="Admin User",
@@ -156,13 +156,13 @@ async def populate():
         # ── Step 6: Sample Recruiter user ─────────────────────────────
         print("\n📋 Step 6: Creating Sample Recruiter...")
         recruiter_user = (
-            await db.execute(select(User).where(User.email == "recruiter@hiremind-demo.test"))
+            await db.execute(select(User).where(User.email == "recruiter@hiremind-demo.io"))
         ).scalar_one_or_none()
 
         if not recruiter_user:
             recruiter_user = User(
-                username="recruiter@hiremind-demo.test",
-                email="recruiter@hiremind-demo.test",
+                username="recruiter@hiremind-demo.io",
+                email="recruiter@hiremind-demo.io",
                 first_name="Riley",
                 last_name="Recruiter",
                 full_name="Riley Recruiter",
@@ -175,7 +175,7 @@ async def populate():
             )
             db.add(recruiter_user)
             print("✅ Sample recruiter created")
-            print(f"   Email: recruiter@hiremind-demo.test | Password: {DEFAULT_PASSWORD}")
+            print(f"   Email: recruiter@hiremind-demo.io | Password: {DEFAULT_PASSWORD}")
         else:
             recruiter_user.role_id = recruiter_role.id
             recruiter_user.is_active = True
@@ -185,13 +185,13 @@ async def populate():
         # ── Step 7: Sample Hiring Manager user ─────────────────────────
         print("\n📋 Step 7: Creating Sample Hiring Manager...")
         hm_user = (
-            await db.execute(select(User).where(User.email == "hiringmanager@hiremind-demo.test"))
+            await db.execute(select(User).where(User.email == "hiringmanager@hiremind-demo.io"))
         ).scalar_one_or_none()
 
         if not hm_user:
             hm_user = User(
-                username="hiringmanager@hiremind-demo.test",
-                email="hiringmanager@hiremind-demo.test",
+                username="hiringmanager@hiremind-demo.io",
+                email="hiringmanager@hiremind-demo.io",
                 first_name="Hana",
                 last_name="Manager",
                 full_name="Hana Manager",
@@ -204,7 +204,7 @@ async def populate():
             )
             db.add(hm_user)
             print("✅ Sample hiring manager created")
-            print(f"   Email: hiringmanager@hiremind-demo.test | Password: {DEFAULT_PASSWORD}")
+            print(f"   Email: hiringmanager@hiremind-demo.io | Password: {DEFAULT_PASSWORD}")
         else:
             hm_user.role_id = hm_role.id
             hm_user.is_active = True
@@ -217,9 +217,9 @@ async def populate():
     print("✅ Database Population Completed Successfully!")
     print("=" * 60)
     print("\n📋 Login credentials (LOCAL DEV ONLY — change before production):")
-    print(f"   • admin@hiremind-demo.test          / {DEFAULT_PASSWORD}   (superuser, all permissions)")
-    print(f"   • recruiter@hiremind-demo.test       / {DEFAULT_PASSWORD}   (recruiter role)")
-    print(f"   • hiringmanager@hiremind-demo.test   / {DEFAULT_PASSWORD}   (hiring_manager role)")
+    print(f"   • admin@hiremind-demo.io          / {DEFAULT_PASSWORD}   (superuser, all permissions)")
+    print(f"   • recruiter@hiremind-demo.io       / {DEFAULT_PASSWORD}   (recruiter role)")
+    print(f"   • hiringmanager@hiremind-demo.io   / {DEFAULT_PASSWORD}   (hiring_manager role)")
     print("\n   Docs: http://localhost:8000/docs")
 
 
