@@ -13,6 +13,20 @@ from app.core.config import settings
 from app.core.exceptions import AppException, app_exception_handler, unhandled_exception_handler
 from app.api.v1 import auth, users, health, jobs, candidates, search, processing, interviews
 
+# email-validator (used by every EmailStr field: registration, login, job
+# postings, etc.) does a live DNS/MX lookup by default to check
+# "deliverability" — this makes every request touching an email field
+# depend on outbound DNS access at validation time, which is fragile in
+# sandboxed/CI/offline environments and adds latency for no real benefit:
+# a domain having valid MX records doesn't mean the address exists, and a
+# domain temporarily failing a DNS check doesn't mean it's invalid. Real
+# email verification belongs in a confirmation-email flow, not request
+# validation. Disabling deliverability keeps syntax validation strict
+# while removing this external dependency.
+import email_validator
+
+email_validator.CHECK_DELIVERABILITY = False
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
