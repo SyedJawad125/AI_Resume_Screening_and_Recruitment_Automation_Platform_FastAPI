@@ -1,0 +1,107 @@
+API Endpoints Documentation
+Base URL: http://localhost:8000
+API Prefix: /api/v1
+All endpoints listed below are relative to the prefix (e.g., /auth/login → /api/v1/auth/login).
+
+Health:
+
+GET /health – Health check (database connectivity)
+
+Authentication:
+
+POST /auth/register – Create new recruiter account
+
+POST /auth/login – Login and get access/refresh tokens
+
+POST /auth/refresh – Exchange refresh token for new access token
+
+POST /auth/logout – Invalidate refresh tokens
+
+POST /auth/forgot-password – Send OTP reset code
+
+POST /auth/verify-otp – Verify OTP and get reset token
+
+POST /auth/reset-password – Reset password with reset token
+
+POST /auth/change-password – Change password (requires authentication)
+
+Users:
+
+GET /users/me – Get current user profile
+
+PATCH /users/me – Update current user profile
+
+GET /users/ – List users (admin only)
+
+GET /users/{id} – Get user details (admin only)
+
+PATCH /users/{id}/block – Block/unblock user (admin only)
+
+Roles:
+
+GET /users/roles/ – List all roles
+
+POST /users/roles/ – Create role (admin only)
+
+PATCH /users/roles/{id} – Update role (admin only)
+
+DELETE /users/roles/{id} – Delete role (admin only)
+
+Permissions:
+
+GET /users/permissions/ – List all permissions
+
+Companies:
+
+GET /users/companies/ – List companies (admin only)
+
+POST /users/companies/ – Create company (admin only)
+
+PATCH /users/companies/{id} – Update company (admin only)
+
+DELETE /users/companies/{id} – Soft delete company (admin only)
+
+Jobs:
+
+POST /jobs – Create job (runs Job Analysis Agent)
+
+GET /jobs – List jobs for your company
+
+GET /jobs/{job_id} – Get job details with structured requirements
+
+POST /jobs/{job_id}/resumes – Upload resumes for a job
+
+POST /jobs/{job_id}/screen – Screen all candidates against job
+
+GET /jobs/{job_id}/candidates – List scored candidates (ranked)
+
+Candidates:
+
+GET /candidates/{candidate_id} – Get full candidate profile
+
+GET /candidates/{candidate_id}/score?job_id=... – Get explainable score for specific job
+
+POST /candidates/compare – Compare 2+ candidates for a job
+
+Search: 
+
+POST /search/candidates – Semantic search (ranked candidate list)
+
+POST /search/chat – Agentic RAG chat with candidates
+
+POST /search/chat/stream – Agentic RAG chat (streamed via SSE)
+
+Processing:   
+
+GET /processing/{resume_id} – Check resume processing status
+
+Interviews:
+
+POST /interviews – Create interview + generate questions
+
+GET /interviews/{id} – Get interview details with questions
+
+POST /interviews/{id}/answers – Submit candidate answers
+
+POST /interviews/{id}/evaluate – Run Evaluation Agent
+
