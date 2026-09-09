@@ -1,107 +1,150 @@
-API Endpoints Documentation
-Base URL: http://localhost:8000
-API Prefix: /api/v1
-All endpoints listed below are relative to the prefix (e.g., /auth/login → /api/v1/auth/login).
+API Endpoints — Postman Reference
 
-Health:
+Base URL:
 
-GET /health – Health check (database connectivity)
+http://localhost:8000
 
-Authentication:
+API Prefix:
 
-POST /auth/register – Create new recruiter account
+/api/v1
+1. Health Check
 
-POST /auth/login – Login and get access/refresh tokens
+GET /api/v1/health
+Check API and database connectivity.
 
-POST /auth/refresh – Exchange refresh token for new access token
+2. Authentication
 
-POST /auth/logout – Invalidate refresh tokens
+POST /api/v1/auth/register
+Create a new recruiter account.
 
-POST /auth/forgot-password – Send OTP reset code
+POST /api/v1/auth/login
+Login and receive access and refresh tokens.
 
-POST /auth/verify-otp – Verify OTP and get reset token
+POST /api/v1/auth/refresh
+Generate a new access token using the refresh token.
 
-POST /auth/reset-password – Reset password with reset token
+POST /api/v1/auth/logout
+Invalidate the user's refresh tokens.
 
-POST /auth/change-password – Change password (requires authentication)
+POST /api/v1/auth/forgot-password
+Request an OTP for password reset.
 
-Users:
+POST /api/v1/auth/verify-otp
+Verify the password-reset OTP and receive a reset token.
 
-GET /users/me – Get current user profile
+POST /api/v1/auth/reset-password
+Reset the password using the reset token.
 
-PATCH /users/me – Update current user profile
+POST /api/v1/auth/change-password
+Change the current user's password. Requires authentication.
 
-GET /users/ – List users (admin only)
+3. Users
 
-GET /users/{id} – Get user details (admin only)
+GET /api/v1/users/me
+Get the currently authenticated user's profile.
 
-PATCH /users/{id}/block – Block/unblock user (admin only)
+PATCH /api/v1/users/me
+Update the current user's profile.
 
-Roles:
+GET /api/v1/users/
+List all users. Admin only.
 
-GET /users/roles/ – List all roles
+GET /api/v1/users/{id}
+Get details of a specific user. Admin only.
 
-POST /users/roles/ – Create role (admin only)
+PATCH /api/v1/users/{id}/block
+Block or unblock a user. Admin only.
 
-PATCH /users/roles/{id} – Update role (admin only)
+4. Roles
 
-DELETE /users/roles/{id} – Delete role (admin only)
+GET /api/v1/users/roles/
+List all available roles.
 
-Permissions:
+POST /api/v1/users/roles/
+Create a new role. Admin only.
 
-GET /users/permissions/ – List all permissions
+PATCH /api/v1/users/roles/{id}
+Update an existing role. Admin only.
 
-Companies:
+DELETE /api/v1/users/roles/{id}
+Delete a role. Admin only.
 
-GET /users/companies/ – List companies (admin only)
+5. Permissions
 
-POST /users/companies/ – Create company (admin only)
+GET /api/v1/users/permissions/
+List all available permissions.
 
-PATCH /users/companies/{id} – Update company (admin only)
+6. Companies
 
-DELETE /users/companies/{id} – Soft delete company (admin only)
+GET /api/v1/users/companies/
+List all companies. Admin only.
 
-Jobs:
+POST /api/v1/users/companies/
+Create a new company. Admin only.
 
-POST /jobs – Create job (runs Job Analysis Agent)
+PATCH /api/v1/users/companies/{id}
+Update company information. Admin only.
 
-GET /jobs – List jobs for your company
+DELETE /api/v1/users/companies/{id}
+Soft-delete a company. Admin only.
 
-GET /jobs/{job_id} – Get job details with structured requirements
+7. Jobs
 
-POST /jobs/{job_id}/resumes – Upload resumes for a job
+POST /api/v1/jobs
+Create a new job and run the Job Analysis Agent.
 
-POST /jobs/{job_id}/screen – Screen all candidates against job
+GET /api/v1/jobs
+List jobs belonging to the current company.
 
-GET /jobs/{job_id}/candidates – List scored candidates (ranked)
+GET /api/v1/jobs/{job_id}
+Get job details, including structured job requirements.
 
-Candidates:
+POST /api/v1/jobs/{job_id}/resumes
+Upload resumes for a specific job.
 
-GET /candidates/{candidate_id} – Get full candidate profile
+POST /api/v1/jobs/{job_id}/screen
+Screen all candidates against the job requirements.
 
-GET /candidates/{candidate_id}/score?job_id=... – Get explainable score for specific job
+GET /api/v1/jobs/{job_id}/candidates
+Get ranked candidates and their screening scores.
 
-POST /candidates/compare – Compare 2+ candidates for a job
+8. Candidates
 
-Search: 
+GET /api/v1/candidates/{candidate_id}
+Get the complete candidate profile.
 
-POST /search/candidates – Semantic search (ranked candidate list)
+GET /api/v1/candidates/{candidate_id}/score?job_id={job_id}
+Get the explainable candidate score for a specific job.
 
-POST /search/chat – Agentic RAG chat with candidates
+POST /api/v1/candidates/compare
+Compare two or more candidates for a specific job.
 
-POST /search/chat/stream – Agentic RAG chat (streamed via SSE)
+9. Candidate Search & AI Chat
 
-Processing:   
+POST /api/v1/search/candidates
+Perform semantic candidate search and return ranked candidates.
 
-GET /processing/{resume_id} – Check resume processing status
+POST /api/v1/search/chat
+Chat with candidate data using Agentic RAG.
 
-Interviews:
+POST /api/v1/search/chat/stream
+Stream Agentic RAG responses using Server-Sent Events (SSE).
 
-POST /interviews – Create interview + generate questions
+10. Resume Processing
 
-GET /interviews/{id} – Get interview details with questions
+GET /api/v1/processing/{resume_id}
+Check the processing status of an uploaded resume.
 
-POST /interviews/{id}/answers – Submit candidate answers
+11. Interviews
 
-POST /interviews/{id}/evaluate – Run Evaluation Agent
+POST /api/v1/interviews
+Create an interview and generate AI-powered interview questions.
 
+GET /api/v1/interviews/{id}
+Get interview details and generated questions.
+
+POST /api/v1/interviews/{id}/answers
+Submit candidate interview answers.
+
+POST /api/v1/interviews/{id}/evaluate
+Run the AI Evaluation Agent to evaluate the candidate's answers.
