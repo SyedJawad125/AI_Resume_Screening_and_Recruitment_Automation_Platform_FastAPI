@@ -25,6 +25,21 @@ from app.models import embedding  # noqa: F401
 from app.models import application  # noqa: F401
 from app.models import interview  # noqa: F401
 
+from pgvector.sqlalchemy import Vector
+
+
+def render_item(type_, obj, autogen_context):
+    """Alembic's autogenerate has no built-in renderer for third-party
+    column types — without this, a generated migration references
+    `pgvector.sqlalchemy.vector.VECTOR(...)` without ever importing
+    `pgvector`, which raises NameError the moment the migration runs.
+    This teaches autogenerate to render pgvector's Vector type correctly
+    and add the matching import to the generated file."""
+    if type_ == "type" and isinstance(obj, Vector):
+        autogen_context.imports.add("import pgvector.sqlalchemy")
+        return "pgvector.sqlalchemy.Vector(%r)" % obj.dim
+    return False
+
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
@@ -41,6 +56,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_item=render_item,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -54,7 +70,7 @@ def do_run_migrations(connection) -> None:
     connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     connection.commit()
 
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(connection=connection, target_metadata=target_metadata, render_item=render_item)
     with context.begin_transaction():
         context.run_migrations()
 
