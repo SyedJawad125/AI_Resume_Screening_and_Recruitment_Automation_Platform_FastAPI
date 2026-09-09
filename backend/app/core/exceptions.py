@@ -20,7 +20,7 @@ class AppException(Exception):
 
 
 class ValidationError(AppException):
-    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     default_message = "Validation failed."
 
 
