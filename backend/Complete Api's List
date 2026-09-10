@@ -41,7 +41,7 @@ Change the current user's password. Requires authentication.
 3. Users
 
 GET /api/v1/users/me
-Get the currently authenticated user's profile.
+Get the currently authenticated user's profile. Ok 
 
 PATCH /api/v1/users/me
 Update the current user's profile.
@@ -58,7 +58,7 @@ Block or unblock a user. Admin only.
 4. Roles
 
 GET /api/v1/users/roles/
-List all available roles.
+List all available roles. Ok
 
 POST /api/v1/users/roles/
 Create a new role. Admin only.
