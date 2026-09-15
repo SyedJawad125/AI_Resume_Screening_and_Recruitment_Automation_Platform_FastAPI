@@ -57,7 +57,17 @@ async def list_jobs_endpoint(
     company_id = _require_company(current_user)
     jobs, total = await list_jobs(db, company_id, page, page_size)
     data = [
-        {"id": str(j.id), "title": j.title, "location": j.location, "status": j.status, "created_at": j.created_at.isoformat()}
+        {
+            "id": str(j.id),
+            "title": j.title,
+            "location": j.location,
+            "status": j.status,
+            "created_at": j.created_at.isoformat(),
+            "company": {
+                "id": str(j.company.id),
+                "name": j.company.name
+            } if j.company else None
+        }
         for j in jobs
     ]
     return paginated_response(data, total, page, page_size)
@@ -96,12 +106,14 @@ async def upload_resumes_endpoint(
             filename=upload.filename,
             file_bytes=file_bytes,
         )
-        process_resume_task.delay(str(resume.id))
+        # Temporarily disable Celery for development - process synchronously
+        # process_resume_task.delay(str(resume.id))
         results.append(
             {
                 "resume_id": str(resume.id),
                 "filename": resume.original_filename,
                 "status": resume.status,
+                "note": "Resume queued for processing. Redis/Celery not configured - process manually or start Redis for background processing."
             }
         )
     return success_response(results, count=len(results), status_code=202)
@@ -114,6 +126,61 @@ async def screen_job_endpoint(
     await get_job_with_requirement(db, job_id)
     applications = await screen_all_candidates_for_job(db, job_id)
     return success_response({"screened_count": len(applications)})
+
+
+@router.post("/{job_id}/process-resumes")
+async def process_queued_resumes_endpoint(
+    job_id: str, current_user: User = Depends(require_permission("can_upload_resume")), db: AsyncSession = Depends(get_db)
+):
+    """Manual endpoint to process queued resumes when Celery is not available."""
+    from sqlalchemy import select
+    from app.models.resume import Resume, ProcessingStatus
+    from app.services.resume_service import run_resume_pipeline
+
+    await get_job_with_requirement(db, job_id)
+
+    # Get all resumes for this job (not just queued) to see what we have
+    all_resumes_result = await db.execute(
+        select(Resume).where(Resume.job_id == job_id)
+    )
+    all_resumes = all_resumes_result.scalars().all()
+
+    # Get specifically queued resumes
+    queued_result = await db.execute(
+        select(Resume).where(
+            Resume.job_id == job_id,
+            Resume.status == ProcessingStatus.QUEUED
+        )
+    )
+    queued_resumes = queued_result.scalars().all()
+
+    processed = []
+    # Process all resumes regardless of status to handle failed ones
+    for resume in all_resumes:
+        try:
+            await run_resume_pipeline(db, str(resume.id))
+            processed.append({
+                "resume_id": str(resume.id),
+                "filename": resume.original_filename,
+                "status": "processed",
+                "previous_status": resume.status
+            })
+        except Exception as e:
+            processed.append({
+                "resume_id": str(resume.id),
+                "filename": resume.original_filename,
+                "status": "failed",
+                "error": str(e),
+                "previous_status": resume.status
+            })
+
+    return success_response({
+        "total_resumes": len(all_resumes),
+        "queued_resumes": len(queued_resumes),
+        "processed_count": len([r for r in processed if r["status"] == "processed"]),
+        "failed_count": len([r for r in processed if r["status"] == "failed"]),
+        "details": processed
+    })
 
 
 @router.get("/{job_id}/candidates")
@@ -158,6 +225,10 @@ def _job_to_dict(job) -> dict:
         "description": job.description,
         "location": job.location,
         "status": job.status,
+        "company": {
+            "id": str(job.company.id),
+            "name": job.company.name
+        } if job.company else None,
         "requirement": (
             {
                 "required_skills": req.required_skills,
