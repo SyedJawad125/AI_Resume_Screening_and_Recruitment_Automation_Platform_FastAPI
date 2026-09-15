@@ -94,6 +94,7 @@ POST /api/v1/jobs
 Create a new job and run the Job Analysis Agent.
 
 GET /api/v1/jobs
+/api/v1/jobs?company_id=de8e68cb-80f2-47bc-8cae-8976b7ef401a   ok
 List jobs belonging to the current company.
 
 GET /api/v1/jobs/{job_id}
@@ -102,6 +103,7 @@ Get job details, including structured job requirements.
 POST /api/v1/jobs/{job_id}/resumes
 Upload resumes for a specific job.
 
+POST /api/v1/jobs/991af69a-9cd0-40b4-83a7-a16e9c9de47a/process-resumes
 POST /api/v1/jobs/{job_id}/screen
 Screen all candidates against the job requirements.
 
