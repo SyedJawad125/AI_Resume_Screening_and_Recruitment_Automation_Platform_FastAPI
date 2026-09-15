@@ -15,6 +15,7 @@ the pipeline logic itself doesn't change, only how it's invoked).
 import os
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -55,6 +56,8 @@ async def create_queued_resume(
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     storage_path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_{filename}")
+    # Normalize path for cross-platform compatibility
+    storage_path = os.path.normpath(storage_path)
     with open(storage_path, "wb") as f:
         f.write(file_bytes)
 
