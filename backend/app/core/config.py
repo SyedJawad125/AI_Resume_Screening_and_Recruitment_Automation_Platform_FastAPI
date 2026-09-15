@@ -64,8 +64,8 @@ class Settings(BaseSettings):
 
     # File uploads
     MAX_RESUME_FILE_SIZE_MB: int = 10
-    ALLOWED_RESUME_EXTENSIONS: str = ".pdf,.docx"
-    UPLOAD_DIR: str = "/app/uploads"
+    ALLOWED_RESUME_EXTENSIONS: str = ".pdf,.docx,.doc"
+    UPLOAD_DIR: str = "uploads"
 
     # Scoring weights (must sum to 1.0 — validated at import time in matching engine)
     SCORE_WEIGHT_REQUIRED_SKILLS: float = 0.35
