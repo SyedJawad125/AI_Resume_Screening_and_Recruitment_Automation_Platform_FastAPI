@@ -52,7 +52,7 @@ async def create_job(db: AsyncSession, company_id: str, created_by_id: str, titl
 
 async def get_job_with_requirement(db: AsyncSession, job_id: str) -> Job:
     result = await db.execute(
-        select(Job).options(selectinload(Job.requirement)).where(Job.id == job_id, Job.deleted == False)  # noqa: E712
+        select(Job).options(selectinload(Job.requirement), selectinload(Job.company)).where(Job.id == job_id, Job.deleted == False)  # noqa: E712
     )
     job = result.scalar_one_or_none()
     if not job:
@@ -63,7 +63,7 @@ async def get_job_with_requirement(db: AsyncSession, job_id: str) -> Job:
 async def list_jobs(db: AsyncSession, company_id: str, page: int, page_size: int):
     from sqlalchemy import func
 
-    q = select(Job).where(Job.company_id == company_id, Job.deleted == False).order_by(Job.created_at.desc())  # noqa: E712
+    q = select(Job).options(selectinload(Job.company)).where(Job.company_id == company_id, Job.deleted == False).order_by(Job.created_at.desc())  # noqa: E712
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     result = await db.execute(q.offset((page - 1) * page_size).limit(page_size))
     return result.scalars().all(), total
