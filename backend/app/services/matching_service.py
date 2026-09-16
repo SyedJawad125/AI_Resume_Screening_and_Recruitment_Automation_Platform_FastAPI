@@ -49,7 +49,9 @@ async def screen_candidate(db: AsyncSession, job_id: str, candidate_id: str) -> 
 
     existing = (
         await db.execute(
-            select(Application).where(Application.job_id == job_id, Application.candidate_id == candidate_id)
+            select(Application).options(selectinload(Application.score)).where(
+                Application.job_id == job_id, Application.candidate_id == candidate_id
+            )
         )
     ).scalar_one_or_none()
 
@@ -58,7 +60,7 @@ async def screen_candidate(db: AsyncSession, job_id: str, candidate_id: str) -> 
         db.add(application)
         await db.flush()
 
-    score_row = application.score or CandidateScore(application_id=application.id)
+    score_row = existing.score if existing else CandidateScore(application_id=application.id)
     score_row.required_skills_score = final_state["skill_score"]
     score_row.experience_score = final_state["experience_score"]
     score_row.semantic_score = final_state["semantic_score"]
@@ -74,7 +76,7 @@ async def screen_candidate(db: AsyncSession, job_id: str, candidate_id: str) -> 
     score_row.strengths = strengths
     score_row.weights_used = final_state["explanation"]["breakdown"]
 
-    if not application.score:
+    if not existing or not existing.score:
         db.add(score_row)
 
     await db.commit()
