@@ -94,7 +94,7 @@ async def load_data_node(state: RecruitmentState, db) -> dict:
 
 async def matching_node(state: RecruitmentState, db=None) -> dict:
     if state.get("error"):
-        return {}
+        return {"error": state["error"]}
 
     req = state["job_requirements"]
     profile = state["candidate_profile"]
@@ -126,7 +126,7 @@ async def matching_node(state: RecruitmentState, db=None) -> dict:
 
 async def evidence_node(state: RecruitmentState, db=None) -> dict:
     if state.get("error"):
-        return {}
+        return {"error": state["error"]}
 
     req = state["job_requirements"]
     all_requirements = req["required_skills"] + req["preferred_skills"]
@@ -140,7 +140,7 @@ async def evaluation_node(state: RecruitmentState, db=None) -> dict:
     final_score, so it cannot invent a different number than the
     deterministic matching engine produced."""
     if state.get("error"):
-        return {}
+        return {"error": state["error"]}
 
     user_prompt = (
         f"Matched required skills: {state['matched_required_skills']}\n"
@@ -195,11 +195,11 @@ async def decision_node(state: RecruitmentState, db=None) -> dict:
 
 
 async def shortlist_node(state: RecruitmentState, db=None) -> dict:
-    return {}  # terminal branch — hook for future auto-notify/auto-advance logic
+    return {"recommendation": "SHORTLIST"}  # terminal branch — hook for future auto-notify/auto-advance logic
 
 
 async def review_reject_node(state: RecruitmentState, db=None) -> dict:
-    return {}  # terminal branch — hook for future auto-notify logic
+    return {"recommendation": "REVIEW"}  # terminal branch — hook for future auto-notify logic
 
 
 def route_after_decision(state: RecruitmentState) -> str:
