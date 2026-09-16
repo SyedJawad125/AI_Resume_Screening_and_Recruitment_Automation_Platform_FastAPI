@@ -49,8 +49,14 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    # Never leak internals; log the real exception via observability layer instead.
+    # Temporary: show error details for debugging
+    import traceback
+    error_details = traceback.format_exc()
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"success": False, "message": "Internal server error.", "data": None},
+        content={
+            "success": False,
+            "message": f"Internal server error: {str(exc)}",
+            "data": {"traceback": error_details}
+        },
     )
