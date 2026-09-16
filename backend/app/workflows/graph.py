@@ -27,13 +27,35 @@ from app.workflows.state import RecruitmentState
 def build_recruitment_graph(db):
     graph = StateGraph(RecruitmentState)
 
-    graph.add_node("load_data", lambda state: nodes.load_data_node(state, db))
-    graph.add_node("matching", lambda state: nodes.matching_node(state, db))
-    graph.add_node("evidence", lambda state: nodes.evidence_node(state, db))
-    graph.add_node("evaluation", lambda state: nodes.evaluation_node(state, db))
-    graph.add_node("decision", lambda state: nodes.decision_node(state, db))
-    graph.add_node("shortlist", lambda state: nodes.shortlist_node(state, db))
-    graph.add_node("review_reject", lambda state: nodes.review_reject_node(state, db))
+    # Use async-compatible node setup by creating wrapper functions
+    async def load_data_wrapper(state):
+        return await nodes.load_data_node(state, db)
+
+    async def matching_wrapper(state):
+        return await nodes.matching_node(state, db)
+
+    async def evidence_wrapper(state):
+        return await nodes.evidence_node(state, db)
+
+    async def evaluation_wrapper(state):
+        return await nodes.evaluation_node(state, db)
+
+    async def decision_wrapper(state):
+        return await nodes.decision_node(state, db)
+
+    async def shortlist_wrapper(state):
+        return await nodes.shortlist_node(state, db)
+
+    async def review_reject_wrapper(state):
+        return await nodes.review_reject_node(state, db)
+
+    graph.add_node("load_data", load_data_wrapper)
+    graph.add_node("matching", matching_wrapper)
+    graph.add_node("evidence", evidence_wrapper)
+    graph.add_node("evaluation", evaluation_wrapper)
+    graph.add_node("decision", decision_wrapper)
+    graph.add_node("shortlist", shortlist_wrapper)
+    graph.add_node("review_reject", review_reject_wrapper)
 
     graph.set_entry_point("load_data")
     graph.add_edge("load_data", "matching")
