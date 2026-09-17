@@ -143,6 +143,9 @@ async def run_resume_pipeline(db: AsyncSession, resume_id: str) -> Resume:
     except Exception as exc:
         resume.status = ProcessingStatus.FAILED
         resume.error_message = str(exc)
+        await db.commit()
+        await db.refresh(resume)
+        return resume
 
     await db.commit()
     await db.refresh(resume)
