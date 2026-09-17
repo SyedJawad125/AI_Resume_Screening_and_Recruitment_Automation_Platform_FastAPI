@@ -104,7 +104,7 @@ POST /api/v1/jobs/{job_id}/resumes
 Upload resumes for a specific job.
 
 POST /api/v1/jobs/991af69a-9cd0-40b4-83a7-a16e9c9de47a/process-resumes
-POST /api/v1/jobs/{job_id}/screen           start form here Apis's 
+POST /api/v1/jobs/{job_id}/screen         
 Screen all candidates against the job requirements.
 
 GET /api/v1/jobs/{job_id}/candidates
@@ -134,7 +134,7 @@ Stream Agentic RAG responses using Server-Sent Events (SSE).
 
 10. Resume Processing
 
-GET /api/v1/processing/{resume_id}
+GET /api/v1/processing/{resume_id}           Now check from this api
 Check the processing status of an uploaded resume.
 
 11. Interviews
