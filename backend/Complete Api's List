@@ -134,12 +134,12 @@ Stream Agentic RAG responses using Server-Sent Events (SSE).
 
 10. Resume Processing
 
-GET /api/v1/processing/{resume_id}           Now check from this api
+GET /api/v1/processing/{resume_id}
 Check the processing status of an uploaded resume.
 
 11. Interviews
 
-POST /api/v1/interviews
+POST /api/v1/interviews            Now check from this api
 Create an interview and generate AI-powered interview questions.
 
 GET /api/v1/interviews/{id}
@@ -150,3 +150,96 @@ Submit candidate interview answers.
 
 POST /api/v1/interviews/{id}/evaluate
 Run the AI Evaluation Agent to evaluate the candidate's answers.
+
+
+
+
+
+
+
+Based on the codebase, here are the 4 Interview APIs with their theoretical explanations:
+
+1. POST /api/v1/interviews - Create Interview & Generate Questions
+Purpose: Creates a new interview for a specific candidate and job, then uses AI to generate relevant technical questions.
+
+Theory:
+
+Takes a job_id and candidate_id as input
+Retrieves the job requirements (required/preferred skills) from the database
+Retrieves the candidate's skills from their parsed resume
+Passes this information to the Interview Agent (LLM)
+The Interview Agent generates customized questions based on:
+Job title and requirements
+Candidate's skill gaps
+Technical depth needed for the role
+Questions are stored in the database with topics (e.g., "Database Optimization", "API Design")
+Returns the interview ID and generated questions
+Use Case: When a recruiter wants to start the interview process for a shortlisted candidate.
+
+2. GET /api/v1/interviews/{id} - Get Interview Details
+Purpose: Retrieves an existing interview with all its questions for review.
+
+Theory:
+
+Takes an interview_id as input
+Fetches the interview record from the database
+Eagerly loads all associated questions (prevents N+1 query problem)
+Returns the interview status, job/candidate info, and all questions with their IDs
+Useful for displaying the interview interface to the candidate or reviewer
+Use Case: When a candidate needs to see their interview questions, or a recruiter wants to review the interview setup.
+
+3. POST /api/v1/interviews/{id}/answers - Submit Candidate Answers
+Purpose: Allows a candidate to submit their answers to the interview questions.
+
+Theory:
+
+Takes an interview_id and a dictionary of {question_id: answer_text}
+Validates that all submitted question IDs belong to this interview
+Stores each answer in the database linked to its question
+Updates the interview status to answers_submitted
+The answers are persisted for later evaluation
+Use Case: When a candidate completes their interview and submits their responses.
+
+4. POST /api/v1/interviews/{id}/evaluate - Evaluate Interview
+Purpose: Uses AI to score the candidate's answers and provide detailed feedback.
+
+Theory:
+
+Takes an interview_id as input
+Retrieves the interview with questions and answers (eagerly loaded)
+Retrieves the job requirements for context
+Passes the following to the Evaluation Agent (LLM):
+Job title and required skills
+Question-answer pairs
+The Evaluation Agent scores each answer on:
+Technical accuracy
+Depth of understanding
+Communication clarity
+Provides an overall assessment with:
+Technical Knowledge score (0-10)
+Problem Solving score (0-10)
+Communication score (0-10)
+Role Fit score (0-10)
+Overall score (0-10)
+Written summary
+Per-question feedback with scores
+Stores the evaluation in the database
+Updates interview status to evaluated
+Use Case: After a candidate submits answers, the recruiter runs evaluation to get AI-powered scoring and detailed feedback.
+
+Complete Interview Workflow:
+1. Create Interview (POST /interviews)
+   ↓
+   Job + Candidate → Interview Agent → Questions Generated
+   ↓
+2. Get Interview (GET /interviews/{id})
+   ↓
+   Display questions to candidate
+   ↓
+3. Submit Answers (POST /interviews/{id}/answers)
+   ↓
+   Candidate answers → Stored in database
+   ↓
+4. Evaluate Interview (POST /interviews/{id}/evaluate)
+   ↓
+   Q&A Pairs + Job Context → Evaluation Agent → Scores & Feedback
