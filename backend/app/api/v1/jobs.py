@@ -204,6 +204,10 @@ async def process_queued_resumes_endpoint(
     # Process all resumes regardless of status to handle failed ones
     for resume in all_resumes:
         try:
+            # Clear previous error state before reprocessing
+            resume.error_message = None
+            await db.commit()
+            
             await run_resume_pipeline(db, str(resume.id))
             processed.append({
                 "resume_id": str(resume.id),
