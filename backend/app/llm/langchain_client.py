@@ -61,6 +61,7 @@ def get_chat_model():
             api_key=settings.GROQ_API_KEY,
             temperature=0.1,  # extraction/evaluation tasks need determinism, not creativity
             timeout=settings.LLM_TIMEOUT_SECONDS,
+            max_tokens=1024,  # Increased for JSON mode with complex schemas
         )
 
     raise LLMError(f"Unsupported LLM_PROVIDER: {provider}")
@@ -71,12 +72,35 @@ def build_structured_chain(system_prompt: str, output_model: type[T]):
     Reusable across agents — each agent supplies its own system prompt and
     Pydantic output model, gets back a chain it can `.ainvoke({"input": ...})`."""
     llm = get_chat_model()
-    structured_llm = llm.with_structured_output(output_model)
+    
+    # Try JSON mode first, fall back to function-calling if not supported
+    try:
+        structured_llm = llm.with_structured_output(output_model, method="json_mode")
+        
+        # Embed the JSON schema in the system prompt for JSON mode
+        import json
+        schema_json = json.dumps(output_model.model_json_schema(), indent=2)
+        # Escape curly braces for ChatPromptTemplate (which treats system prompt as f-string)
+        schema_escaped = schema_json.replace("{", "{{").replace("}", "}}")
+        
+        enhanced_system_prompt = f"""{system_prompt}
 
-    prompt = ChatPromptTemplate.from_messages(
-        [("system", system_prompt), ("human", "{input}")]
-    )
-    return prompt | structured_llm
+You must respond with a valid JSON object that matches this exact schema:
+{schema_escaped}
+
+Return ONLY the JSON object, no other text."""
+
+        prompt = ChatPromptTemplate.from_messages(
+            [("system", enhanced_system_prompt), ("human", "{input}")]
+        )
+        return prompt | structured_llm
+    except Exception:
+        # Fall back to function-calling if JSON mode fails
+        structured_llm = llm.with_structured_output(output_model)
+        prompt = ChatPromptTemplate.from_messages(
+            [("system", system_prompt), ("human", "{input}")]
+        )
+        return prompt | structured_llm
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10), reraise=True)
