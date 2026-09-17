@@ -88,7 +88,10 @@ async def run_evaluation(db: AsyncSession, interview_id: str) -> EvaluationResul
     interview = (
         await db.execute(
             select(Interview)
-            .options(selectinload(Interview.questions).selectinload(InterviewQuestion.answer))
+            .options(
+                selectinload(Interview.questions).selectinload(InterviewQuestion.answer),
+                selectinload(Interview.evaluation_result)
+            )
             .where(Interview.id == interview_id)
         )
     ).scalar_one_or_none()
